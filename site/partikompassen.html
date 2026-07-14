@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partikompassen — vilka partier röstar ihop? | Riksdagskoll</title>
+<meta name="description" content="Samsynen mellan riksdagens partier 2022–2026: andel voteringar där partiparen tagit samma ställning. Baserat på samtliga voteringar i kammaren.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/rk.css">
+</head>
+<body data-base="">
+<a class="skiplink" href="#innehall">Till innehållet</a>
+
+<main id="innehall">
+  <div class="wrap">
+    <section class="sektion">
+      <h2 style="font-size:28px">Partikompassen</h2>
+      <p class="sub">Hur ofta har partierna tagit <em>samma ställning</em> i kammarens voteringar under mandatperioden 2022–2026? Ett partis ställning i en votering är det alternativ (Ja, Nej eller Avstår) som flest av partiets ledamöter röstade på.</p>
+
+      <div class="kort">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <h3 style="margin:0">Samsyn mellan partipar</h3>
+          <span id="toggle-plats"></span>
+        </div>
+        <div class="heat-wrap" id="heat-diagram"><div class="laddar">Läser data …</div></div>
+        <div id="heat-tabell" hidden></div>
+        <div class="skala" id="skala"></div>
+      </div>
+    </section>
+
+    <section class="sektion">
+      <div class="kort-rad tva">
+        <div class="kort">
+          <h3>Partisammanhållning</h3>
+          <p class="sub" style="margin-bottom:10px">Andel voteringar där partiets ledamöter röstade helt enigt (inga interna ja mot nej).</p>
+          <div id="sammanhallning"><div class="laddar">Läser data …</div></div>
+        </div>
+        <div class="kort">
+          <h3>Frånvaro per parti</h3>
+          <p class="sub" style="margin-bottom:10px">Andel frånvarande av partiets alla möjliga röster i voteringarna. Kvittning ingår i frånvaron.</p>
+          <div id="franvaro"><div class="laddar">Läser data …</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="assets/rk.js"></script>
+<script>
+(async function () {
+  RK.nav('partikompassen');
+  RK.foot();
+
+  let pk;
+  try {
+    pk = await RK.data('partikompass');
+  } catch (e) {
+    document.getElementById('heat-diagram').textContent = '';
+    document.getElementById('heat-diagram').appendChild(RK.el('div', 'tomt', 'Data saknas ännu — kör uppdatera.html.'));
+    return;
+  }
+
+  const partier = pk.partier;
+  const MIN = 30, MAX = 100; // skala för samsyn i praktiken
+
+  // ---- Heatmap (sekventiell ramp, en kulör; värdet skrivet i varje cell) ----
+  const heat = document.getElementById('heat-diagram');
+  heat.textContent = '';
+  const tbl = RK.el('table', 'heat');
+  const cap = RK.el('caption', null, 'Andel voteringar med samma ställning, procent');
+  cap.style.cssText = 'caption-side:top;font-size:12.5px;color:var(--ink-3);padding-bottom:8px';
+  tbl.appendChild(cap);
+  const thead = RK.el('thead');
+  const hr = RK.el('tr');
+  hr.appendChild(RK.el('th'));
+  partier.forEach(function (p) {
+    const th = RK.el('th');
+    th.scope = 'col';
+    th.appendChild(RK.chip(p));
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);
+  tbl.appendChild(thead);
+  const tb = RK.el('tbody');
+  partier.forEach(function (p1) {
+    const tr = RK.el('tr');
+    const th = RK.el('th');
+    th.scope = 'row';
+    th.appendChild(RK.chip(p1));
+    tr.appendChild(th);
+    partier.forEach(function (p2) {
+      const td = RK.el('td');
+      if (p1 === p2) {
+        td.className = 'self';
+        td.textContent = '·';
+      } else {
+        const cell = pk.matrix[p1][p2];
+        if (cell.pct == null) {
+          td.className = 'self';
+          td.textContent = '–';
+        } else {
+          const bg = RK.seqColor(cell.pct, MIN, MAX);
+          td.style.background = bg;
+          td.style.color = RK.inkFor(bg);
+          td.textContent = Math.round(cell.pct);
+          RK.tipBind(td, function () {
+            return [
+              cell.pct.toLocaleString('sv-SE') + ' % samsyn',
+              RK.PARTINAMN[p1] + ' & ' + RK.PARTINAMN[p2] + ' — samma ställning i ' + RK.fmt(Math.round(cell.pct * cell.n / 100)) + ' av ' + RK.fmt(cell.n) + ' voteringar',
+            ];
+          });
+        }
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+  heat.appendChild(tbl);
+
+  // Skala
+  const skala = document.getElementById('skala');
+  skala.appendChild(RK.el('span', null, MIN + ' %'));
+  const steg = RK.el('span', 'steg');
+  RK.SEQ.forEach(function (c) {
+    const i = RK.el('i');
+    i.style.background = c;
+    steg.appendChild(i);
+  });
+  skala.appendChild(steg);
+  skala.appendChild(RK.el('span', null, MAX + ' %'));
+
+  // ---- Tabelltvilling ----
+  const tabDiv = document.getElementById('heat-tabell');
+  const t2 = RK.el('table', 'data');
+  const th2 = RK.el('thead');
+  const hr2 = RK.el('tr');
+  ['Partipar', 'Samsyn', 'Gemensamma voteringar'].forEach(function (h) {
+    const th = RK.el('th', null, h);
+    hr2.appendChild(th);
+  });
+  th2.appendChild(hr2);
+  t2.appendChild(th2);
+  const tb2 = RK.el('tbody');
+  const par = [];
+  for (let i = 0; i < partier.length; i++)
+    for (let j = i + 1; j < partier.length; j++)
+      par.push([partier[i], partier[j]]);
+  par.sort(function (a, b) { return (pk.matrix[b[0]][b[1]].pct || 0) - (pk.matrix[a[0]][a[1]].pct || 0); });
+  par.forEach(function (pp) {
+    const c = pk.matrix[pp[0]][pp[1]];
+    const tr = RK.el('tr');
+    const td1 = RK.el('td');
+    td1.appendChild(RK.chip(pp[0]));
+    td1.appendChild(document.createTextNode(' '));
+    td1.appendChild(RK.chip(pp[1]));
+    tr.appendChild(td1);
+    tr.appendChild(RK.el('td', 'num', c.pct == null ? '–' : RK.pct(c.pct)));
+    tr.appendChild(RK.el('td', 'num', RK.fmt(c.n)));
+    tb2.appendChild(tr);
+  });
+  t2.appendChild(tb2);
+  tabDiv.appendChild(t2);
+  RK.tabellToggle(document.getElementById('toggle-plats'), heatWrapOchSkala(), tabDiv);
+  function heatWrapOchSkala() {
+    const d = RK.el('div');
+    // gruppera diagram + skala för växling
+    const hw = document.getElementById('heat-diagram');
+    return { get hidden() { return hw.hidden; }, set hidden(v) { hw.hidden = v; skala.hidden = v; } };
+  }
+
+  // ---- Sammanhållning & frånvaro (staplar; parti-identitet med bokstavschip) ----
+  function barLista(malId, data, fmtV) {
+    const mal = document.getElementById(malId);
+    mal.textContent = '';
+    const items = partier
+      .map(function (p) { return { p: p, v: data[p] }; })
+      .filter(function (x) { return x.v != null; })
+      .sort(function (a, b) { return b.v - a.v; });
+    const max = Math.max.apply(null, items.map(function (x) { return x.v; }));
+    items.forEach(function (x) {
+      const rad = RK.el('div', 'bar-rad');
+      const bl = RK.el('div', 'bl');
+      bl.appendChild(RK.chip(x.p));
+      rad.appendChild(bl);
+      const spar = RK.el('div', 'bar-spar');
+      const fyll = RK.el('div', 'bar-fyll');
+      fyll.style.width = 'max(2px,' + (100 * x.v / (max || 1)) + '%)';
+      fyll.style.background = 'var(--p-' + (x.p === '-' ? 'X' : x.p) + ')';
+      spar.appendChild(fyll);
+      RK.tipBind(spar, function () { return [fmtV(x.v), RK.PARTINAMN[x.p]]; });
+      rad.appendChild(spar);
+      rad.appendChild(RK.el('div', 'bv', fmtV(x.v)));
+      mal.appendChild(rad);
+    });
+  }
+  barLista('sammanhallning', Object.fromEntries(partier.map(function (p) { return [p, pk.sammanhallning[p] ? pk.sammanhallning[p].pct : null]; })), function (v) { return RK.pct(v); });
+  barLista('franvaro', pk.franvaro, function (v) { return RK.pct(v); });
+})();
+</script>
+</body>
+</html>

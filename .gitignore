@@ -1,0 +1,9 @@
+# Nedladdade källfiler (riksdagens zip/csv) – ingår ej i deploy, laddas ned vid behov
+data/raw/
+
+# OS/editor-skräp
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mattias Eriksson Falk (SD) — närvaro och röster | Riksdagskoll</title>
+<meta name="description" content="Så röstar Mattias Eriksson Falk (Sverigedemokraterna), Södermanlands län: närvaro, röstfördelning och avvikande röster i riksdagen 2022–2026.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/rk.css">
+<meta property="og:title" content="Mattias Eriksson Falk (SD) — Riksdagskoll">
+<meta property="og:description" content="Närvaro, röstmönster och avvikande röster under mandatperioden 2022–2026.">
+</head>
+<body data-base="../" data-slug="mattias-eriksson-falk">
+<a class="skiplink" href="#innehall">Till innehållet</a>
+
+<main id="innehall">
+  <div class="wrap">
+    <section class="sektion">
+      <div class="kort">
+        <div class="profil-topp" id="topp"><div class="laddar">Läser data …</div></div>
+        <div class="tiles" id="tiles" style="margin-top:20px"></div>
+      </div>
+    </section>
+
+    <section class="sektion">
+      <div class="kort-rad tva">
+        <div class="kort">
+          <h3>Närvaro per riksmöte</h3>
+          <p class="sub" style="margin-bottom:10px">Andel voteringar där ledamoten inte var frånvarande.</p>
+          <div id="narvaro-rm"></div>
+        </div>
+        <div class="kort">
+          <h3>Röstfördelning totalt</h3>
+          <p class="sub" style="margin-bottom:10px">Alla registrerade voteringar under mandatperioden.</p>
+          <div id="rostfordelning"></div>
+          <div id="rost-siffror" style="font-size:13.5px;color:var(--ink-2);margin-top:10px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sektion">
+      <div class="kort">
+        <h3>Avvikande röster</h3>
+        <p class="sub" style="margin-bottom:10px">Voteringar där ledamoten röstade emot sitt partis linje (Ja mot partiets Nej eller tvärtom).</p>
+        <div id="avvikelser"></div>
+      </div>
+    </section>
+
+    <p style="font-size:13px;color:var(--ink-3)">Hög frånvaro kan bero på kvittning, ledighet, sjukdom eller uppdrag — läs mer under <a href="../om.html">Om &amp; metod</a>. Kontrollera alltid uppgifter mot <a href="https://www.riksdagen.se" rel="noopener" target="_blank">riksdagen.se</a> innan de citeras.</p>
+  </div>
+</main>
+
+<script src="../assets/rk.js"></script>
+<script>
+(async function () {
+  RK.nav('ledamoter');
+  RK.foot();
+
+  const slug = document.body.getAttribute('data-slug');
+  let alla;
+  try {
+    alla = await RK.data('ledamoter');
+  } catch (e) {
+    document.getElementById('topp').textContent = 'Data saknas ännu — kör uppdatera.html.';
+    return;
+  }
+  const l = alla.find(function (x) { return x.slug === slug; });
+  if (!l) {
+    document.getElementById('topp').textContent = 'Ledamoten hittades inte i datan.';
+    return;
+  }
+
+  // Topp
+  const topp = document.getElementById('topp');
+  topp.textContent = '';
+  const img = RK.el('img');
+  img.src = l.bild || '';
+  img.alt = 'Porträtt av ' + l.fn + ' ' + l.en;
+  img.onerror = function () { this.style.visibility = 'hidden'; };
+  topp.appendChild(img);
+  const info = RK.el('div');
+  info.appendChild(RK.el('h1', null, l.fn + ' ' + l.en));
+  const meta = RK.el('div', 'meta');
+  meta.appendChild(RK.chip(l.parti));
+  meta.appendChild(RK.el('span', null, RK.PARTINAMN[l.parti] || ''));
+  if (l.valkrets) meta.appendChild(RK.el('span', null, '· ' + l.valkrets));
+  if (l.fodd) meta.appendChild(RK.el('span', null, '· född ' + l.fodd));
+  info.appendChild(meta);
+  topp.appendChild(info);
+
+  // Tiles
+  const tiles = document.getElementById('tiles');
+  function tile(label, value, sub) {
+    const t = RK.el('div', 'tile');
+    t.appendChild(RK.el('div', 't-label', label));
+    t.appendChild(RK.el('div', 't-value', value));
+    if (sub) t.appendChild(RK.el('div', 't-sub', sub));
+    tiles.appendChild(t);
+  }
+  tile('Närvaro', l.narvaroPct == null ? '–' : RK.pct(l.narvaroPct), l.F + ' frånvaro av ' + RK.fmt(l.tot));
+  tile('Voteringar', RK.fmt(l.tot), 'mandatperioden 2022–2026');
+  tile('Avvikande röster', String(l.rebell), l.rebellPct != null && l.rebell > 0 ? RK.pct(l.rebellPct, 2) + ' av skarpa röster' : 'mot partilinjen');
+
+  // Närvaro per riksmöte
+  const nrm = document.getElementById('narvaro-rm');
+  RK.RMS.forEach(function (rm) {
+    const c = l.perRm[rm];
+    const rad = RK.el('div', 'bar-rad');
+    rad.appendChild(RK.el('div', 'bl', rm));
+    const spar = RK.el('div', 'bar-spar');
+    if (c) {
+      const tot = c[0] + c[1] + c[2] + c[3];
+      const pct = tot ? 100 * (tot - c[3]) / tot : 0;
+      const fyll = RK.el('div', 'bar-fyll');
+      fyll.style.width = 'max(2px,' + pct + '%)';
+      fyll.style.background = 'var(--seq-5)';
+      spar.appendChild(fyll);
+      RK.tipBind(spar, function () {
+        return [RK.pct(pct), rm + ': ' + c[3] + ' frånvaro av ' + tot + ' voteringar'];
+      });
+      rad.appendChild(spar);
+      rad.appendChild(RK.el('div', 'bv', RK.pct(pct, 0)));
+    } else {
+      spar.style.opacity = 0.4;
+      rad.appendChild(spar);
+      rad.appendChild(RK.el('div', 'bv', '–'));
+    }
+    nrm.appendChild(rad);
+  });
+
+  // Röstfördelning
+  const rf = document.getElementById('rostfordelning');
+  rf.appendChild(RK.fordelning([l.J, l.Nj, l.A, l.F], { label: 'Ja, Nej, Avstår, Frånvarande' }));
+  document.getElementById('rost-siffror').textContent =
+    RK.fmt(l.J) + ' ja · ' + RK.fmt(l.Nj) + ' nej · ' + RK.fmt(l.A) + ' avstår · ' + RK.fmt(l.F) + ' frånvarande';
+
+  // Avvikelser
+  const av = document.getElementById('avvikelser');
+  if (!l.avvikelser || !l.avvikelser.length) {
+    av.appendChild(RK.el('div', 'tomt', 'Inga avvikande röster registrerade under mandatperioden.'));
+  } else {
+    const t = RK.el('table', 'data');
+    const thead = RK.el('thead');
+    const hr = RK.el('tr');
+    ['Datum', 'Votering', 'Ledamotens röst', 'Partiets linje'].forEach(function (h) {
+      hr.appendChild(RK.el('th', null, h));
+    });
+    thead.appendChild(hr);
+    t.appendChild(thead);
+    const tb = RK.el('tbody');
+    l.avvikelser.forEach(function (e) {
+      const tr = RK.el('tr');
+      tr.appendChild(RK.el('td', null, e.datum || e.rm)).style.whiteSpace = 'nowrap';
+      const tdV = RK.el('td');
+      tdV.appendChild(RK.el('div', null, (e.titel ? e.titel + ' ' : '') + '(' + e.bet + ' p. ' + e.punkt + ')'));
+      tr.appendChild(tdV);
+      tr.appendChild(RK.el('td', null, e.rost));
+      tr.appendChild(RK.el('td', null, e.rost === 'Ja' ? 'Nej' : 'Ja'));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    av.appendChild(t);
+  }
+
+  // Titel-fallback om sidan öppnas utan generering
+  if (document.title.indexOf('{{') === 0) {
+    document.title = l.fn + ' ' + l.en + ' (' + l.parti + ') — Riksdagskoll';
+  }
+})();
+</script>
+</body>
+</html>

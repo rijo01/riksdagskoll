@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riksdagskoll — koll på hur riksdagen faktiskt röstar</title>
+<meta name="description" content="Oberoende statistik inför valet 2026: så röstar riksdagens ledamöter och partier. Närvaro, avvikande röster och partisamsyn — byggt på Riksdagens öppna data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/rk.css">
+<meta property="og:title" content="Riksdagskoll — koll på hur riksdagen faktiskt röstar">
+<meta property="og:description" content="Närvaro, avvikande röster och partisamsyn under mandatperioden 2022–2026.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://riksdagskoll.se/assets/og.png">
+</head>
+<body data-base="">
+<a class="skiplink" href="#innehall">Till innehållet</a>
+
+<div class="hero">
+  <div class="wrap">
+    <span class="tag">Valet: 13 september 2026</span>
+    <h1>Koll på hur riksdagen faktiskt röstar</h1>
+    <p class="lede">Riksdagskoll samlar alla voteringar under mandatperioden 2022–2026 och visar det partierna sällan lyfter själva: närvaron, avvikarna och vilka som egentligen röstar ihop. Byggt på Riksdagens öppna data — fritt att granska.</p>
+    <div class="cta-rad">
+      <a class="btn btn-gold" href="ledamoter.html">Kolla din ledamot</a>
+      <a class="btn btn-ghost" href="partikompassen.html">Partikompassen</a>
+    </div>
+    <div class="tiles" id="hero-tiles">
+      <div class="tile dark"><div class="t-label">Dagar kvar till valet</div><div class="t-value" id="t-dagar">–</div><div class="t-sub">13 september 2026</div></div>
+      <div class="tile dark"><div class="t-label">Voteringar</div><div class="t-value" id="t-vot">–</div><div class="t-sub">mandatperioden 2022–2026</div></div>
+      <div class="tile dark"><div class="t-label">Avlagda röster</div><div class="t-value" id="t-roster">–</div><div class="t-sub">ja, nej, avstår &amp; frånvaro</div></div>
+      <div class="tile dark"><div class="t-label">Avvikande röster</div><div class="t-value" id="t-reb">–</div><div class="t-sub">ledamöter mot egna partiet</div></div>
+    </div>
+  </div>
+</div>
+
+<main id="innehall">
+  <div class="wrap">
+
+    <section class="sektion">
+      <div class="kort-rad tre">
+        <a class="kort" href="ledamoter.html" style="display:block">
+          <h3>Ledamöterna</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:14.5px">Alla riksdagsledamöter med närvaro, röstmönster och avvikelser. Sök på namn, parti eller valkrets.</p>
+        </a>
+        <a class="kort" href="voteringar.html" style="display:block">
+          <h3>Voteringarna</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:14.5px">Varje omröstning i kammaren — hur varje parti röstade och vad utfallet blev.</p>
+        </a>
+        <a class="kort" href="partikompassen.html" style="display:block">
+          <h3>Partikompassen</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:14.5px">Vilka partier röstar egentligen ihop? Samsynen mellan alla partipar, mätt i skarpa voteringar.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="sektion">
+      <h2>Topplistor</h2>
+      <p class="sub">Baserat på samtliga voteringar under mandatperioden. Minst 100 voteringar i underlaget per ledamot.</p>
+      <div class="kort-rad tre" id="topplistor">
+        <div class="kort" id="k-franvaro"><h3>Högst frånvaro</h3><ul class="mini-lista laddar-mal"><li class="laddar">Läser data …</li></ul></div>
+        <div class="kort" id="k-rebell"><h3>Flest avvikande röster</h3><ul class="mini-lista laddar-mal"><li class="laddar">Läser data …</li></ul></div>
+        <div class="kort" id="k-narvaro"><h3>Högst närvaro</h3><ul class="mini-lista laddar-mal"><li class="laddar">Läser data …</li></ul></div>
+      </div>
+    </section>
+
+    <section class="sektion">
+      <h2>Senaste avvikande röster</h2>
+      <p class="sub">När en ledamot röstar emot sitt eget partis linje i kammaren.</p>
+      <div class="kort">
+        <ul class="mini-lista" id="senaste-avvikelser"><li class="laddar">Läser data …</li></ul>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="assets/rk.js"></script>
+<script>
+(async function () {
+  RK.nav('start');
+  RK.foot();
+  RK.nedrakning(document.getElementById('t-dagar'));
+
+  function personRad(e, vArde, grA) {
+    const li = RK.el('li');
+    const img = RK.el('img');
+    img.loading = 'lazy'; img.alt = ''; img.src = e.bild || '';
+    img.onerror = function () { this.style.visibility = 'hidden'; };
+    li.appendChild(img);
+    const a = RK.el('a', null, e.namn);
+    a.href = 'ledamot/' + e.slug + '.html';
+    li.appendChild(a);
+    li.appendChild(RK.chip(e.parti));
+    if (grA) li.appendChild(RK.el('span', 'g', grA));
+    li.appendChild(RK.el('span', 'v', vArde));
+    return li;
+  }
+
+  try {
+    const [meta, topp] = await Promise.all([RK.data('meta'), RK.data('topplistor')]);
+    document.getElementById('t-vot').textContent = RK.fmt(meta.antal.voteringar);
+    document.getElementById('t-roster').textContent = RK.fmt(meta.antal.roster);
+    document.getElementById('t-reb').textContent = RK.fmt(meta.antal.avvikelser);
+
+    function fyll(kortId, lista, radFn) {
+      const ul = document.querySelector('#' + kortId + ' ul');
+      ul.textContent = '';
+      if (!lista || !lista.length) { ul.appendChild(RK.el('li', 'laddar', 'Ingen data.')); return; }
+      lista.slice(0, 5).forEach(function (e) { ul.appendChild(radFn(e)); });
+    }
+    fyll('k-franvaro', topp.mest_franvarande, (e) => personRad(e, RK.pct(e.pct), null));
+    fyll('k-rebell', topp.flest_avvikelser, (e) => personRad(e, e.antal + ' st', null));
+    fyll('k-narvaro', topp.hogst_narvaro, (e) => personRad(e, RK.pct(e.pct), null));
+
+    const ul = document.getElementById('senaste-avvikelser');
+    ul.textContent = '';
+    (topp.senaste_avvikelser || []).slice(0, 10).forEach(function (e) {
+      const li = RK.el('li');
+      li.appendChild(RK.chip(e.parti));
+      const a = RK.el('a', null, e.namn);
+      a.href = 'ledamoter.html#sok=' + encodeURIComponent(e.namn);
+      li.appendChild(a);
+      const beskr = 'röstade ' + e.rost + ' när partiet röstade ' + (e.rost === 'Ja' ? 'Nej' : 'Ja');
+      li.appendChild(RK.el('span', 'g', beskr + (e.titel ? ' — ' + e.titel : '') + ' (' + e.bet + ' p. ' + e.punkt + ')'));
+      li.appendChild(RK.el('span', 'v', e.datum || e.rm));
+      ul.appendChild(li);
+    });
+    if (!ul.children.length) ul.appendChild(RK.el('li', 'laddar', 'Ingen data.'));
+  } catch (err) {
+    document.querySelectorAll('.laddar').forEach(function (el) {
+      el.textContent = 'Data saknas ännu — kör uppdatera.html för att hämta.';
+    });
+  }
+})();
+</script>
+</body>
+</html>

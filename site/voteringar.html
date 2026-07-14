@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voteringar — Riksdagskoll</title>
+<meta name="description" content="Alla voteringar i riksdagens kammare 2022–2026: hur varje parti röstade och vad utfallet blev.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/rk.css">
+</head>
+<body data-base="">
+<a class="skiplink" href="#innehall">Till innehållet</a>
+
+<main id="innehall">
+  <div class="wrap">
+    <section class="sektion">
+      <h2 style="font-size:28px">Voteringar i kammaren</h2>
+      <p class="sub">Varje förslagspunkt som gått till omröstning. Klicka på en rad för partiernas röstfördelning. Ja/Nej avser sakfrågan (huvudvoteringen).</p>
+
+      <div class="filterrad">
+        <select id="f-rm" aria-label="Riksmöte"></select>
+        <input type="search" id="sok" placeholder="Sök i titel eller beteckning (t.ex. AU10) …" aria-label="Sök votering">
+        <select id="f-utfall" aria-label="Utfall">
+          <option value="">Alla utfall</option>
+          <option value="bifall">Bifall (Ja vann)</option>
+          <option value="avslag">Avslag (Nej vann)</option>
+        </select>
+        <span class="antal" id="antal"></span>
+      </div>
+
+      <div class="kort" style="padding:6px 14px">
+        <table class="data" id="tabell">
+          <thead>
+            <tr>
+              <th scope="col">Datum</th>
+              <th scope="col">Betänkande</th>
+              <th scope="col">Titel</th>
+              <th scope="col" style="text-align:right">Punkt</th>
+              <th scope="col" style="min-width:130px">Ja / Nej</th>
+              <th scope="col">Utfall</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="6" class="laddar">Läser data …</td></tr></tbody>
+        </table>
+        <div id="visa-fler-rad" style="text-align:center;padding:12px" hidden>
+          <button class="btn btn-blue" id="visa-fler">Visa fler</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="assets/rk.js"></script>
+<script>
+(async function () {
+  RK.nav('voteringar');
+  RK.foot();
+
+  const fRm = document.getElementById('f-rm');
+  const fUtfall = document.getElementById('f-utfall');
+  const sok = document.getElementById('sok');
+  const tbody = document.querySelector('#tabell tbody');
+  const antal = document.getElementById('antal');
+  const visaFlerRad = document.getElementById('visa-fler-rad');
+  const visaFler = document.getElementById('visa-fler');
+
+  RK.RMS.slice().reverse().forEach(function (rm, i) {
+    const o = RK.el('option', null, 'Riksmöte ' + rm);
+    o.value = rm;
+    fRm.appendChild(o);
+  });
+
+  let rader = [];
+  let visade = 0;
+  const PER_SIDA = 100;
+
+  async function laddaRm() {
+    tbody.textContent = '';
+    tbody.appendChild(RK.el('tr')).appendChild(RK.el('td', 'laddar', 'Läser data …')).colSpan = 6;
+    try {
+      rader = await RK.data('voteringar-' + RK.rmShort(fRm.value));
+    } catch (e) {
+      tbody.textContent = '';
+      const td = RK.el('td', 'tomt', 'Data saknas ännu för ' + fRm.value + ' — kör uppdatera.html.');
+      td.colSpan = 6;
+      tbody.appendChild(RK.el('tr')).appendChild(td);
+      antal.textContent = '';
+      return;
+    }
+    rita(true);
+  }
+
+  function matchar(v) {
+    const q = (sok.value || '').toLowerCase();
+    if (fUtfall.value && v.utfall !== fUtfall.value) return false;
+    if (q && !((v.titel || '').toLowerCase().includes(q) || (v.bet || '').toLowerCase().includes(q))) return false;
+    return true;
+  }
+
+  function detaljRad(v) {
+    const tr = RK.el('tr');
+    const td = RK.el('td');
+    td.colSpan = 6;
+    const box = RK.el('div', 'vot-detalj');
+    const rub = RK.el('div', null, 'Partiernas röster — ' + v.bet + ' punkt ' + v.punkt);
+    rub.style.cssText = 'font-weight:650;font-size:13.5px;margin-bottom:8px';
+    box.appendChild(rub);
+    RK.PARTIER.forEach(function (p) {
+      const c = v.parti && v.parti[p];
+      if (!c) return;
+      const rad = RK.el('div', 'rad');
+      const bl = RK.el('div');
+      bl.appendChild(RK.chip(p));
+      rad.appendChild(bl);
+      rad.appendChild(RK.fordelning(c, { label: RK.PARTINAMN[p] + ' — ja, nej, avstår, frånvarande' }));
+      rad.appendChild(RK.el('div', 'siffror', c[0] + ' / ' + c[1] + ' / ' + c[2] + ' / ' + c[3]));
+      box.appendChild(rad);
+    });
+    const not = RK.el('div', null, 'Siffror: Ja / Nej / Avstår / Frånvarande.');
+    not.style.cssText = 'font-size:12px;color:var(--ink-3);margin-top:8px';
+    box.appendChild(not);
+    td.appendChild(box);
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function rita(reset) {
+    const ls = rader.filter(matchar);
+    if (reset) { tbody.textContent = ''; visade = 0; }
+    antal.textContent = ls.length + ' voteringar';
+    const slice = ls.slice(visade, visade + PER_SIDA);
+    slice.forEach(function (v) {
+      const tr = RK.el('tr');
+      tr.style.cursor = 'pointer';
+      tr.appendChild(RK.el('td', null, v.datum || '')).style.whiteSpace = 'nowrap';
+      tr.appendChild(RK.el('td', null, v.bet));
+      const tdT = RK.el('td', null, v.titel || '—');
+      tdT.style.maxWidth = '420px';
+      tr.appendChild(tdT);
+      tr.appendChild(RK.el('td', 'num', String(v.punkt)));
+      const tdJN = RK.el('td');
+      tdJN.appendChild(RK.fordelning(v.tot, { label: 'Hela kammaren' }));
+      tr.appendChild(tdJN);
+      const tdU = RK.el('td');
+      const u = RK.el('span', 'utfall ' + v.utfall, v.utfall === 'bifall' ? 'Bifall' : v.utfall === 'avslag' ? 'Avslag' : 'Jämnt');
+      tdU.appendChild(u);
+      tr.appendChild(tdU);
+
+      let oppen = null;
+      tr.addEventListener('click', function () {
+        if (oppen) { oppen.remove(); oppen = null; return; }
+        oppen = detaljRad(v);
+        tr.after(oppen);
+      });
+      tr.tabIndex = 0;
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') tr.click(); });
+      tbody.appendChild(tr);
+    });
+    visade += slice.length;
+    visaFlerRad.hidden = visade >= ls.length;
+  }
+
+  fRm.addEventListener('change', laddaRm);
+  fUtfall.addEventListener('input', function () { rita(true); });
+  sok.addEventListener('input', function () { rita(true); });
+  visaFler.addEventListener('click', function () { rita(false); });
+
+  laddaRm();
+})();
+</script>
+</body>
+</html>

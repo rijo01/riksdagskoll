@@ -1,0 +1,407 @@
+/* ==========================================================================
+   Riksdagskoll — stilmall
+   Ljust läge. Datavisualisering följer dataviz-metoden:
+   tunna staplar, 2px ytmellanrum, hårfina solida stödlinjer, text i texttoken.
+   ========================================================================== */
+
+:root {
+  /* Ytor & text */
+  --bg: #f4f2ec;
+  --surface: #fcfcfb;
+  --surface-2: #f6f5f1;
+  --ink: #1c2430;
+  --ink-2: #4c5666;
+  --ink-3: #8a93a3;
+  --line: #e5e2d9;
+  --line-soft: #eeece4;
+
+  /* Varumärke (ej data) */
+  --brand: #14345c;
+  --brand-2: #1d4f8c;
+  --gold: #c99b2e;
+  --gold-soft: #f3e3bb;
+
+  /* Partifärger — fast ordning S, SD, M, C, V, KD, MP, L (validerad palett).
+     Färg bär aldrig identitet ensam: partibokstav visas alltid intill. */
+  --p-S: #e8112d;
+  --p-SD: #c9b300;
+  --p-M: #52bdec;
+  --p-C: #00953b;
+  --p-V: #9a1a1a;
+  --p-KD: #4740b3;
+  --p-MP: #6dbb2b;
+  --p-L: #0069b4;
+  --p-X: #8a93a3; /* partilös */
+
+  /* Sekventiell ramp (samsyn, ljus→mörk, en kulör) */
+  --seq-1: #c6daf7;
+  --seq-2: #9fc0f0;
+  --seq-3: #74a3e6;
+  --seq-4: #4a85d9;
+  --seq-5: #2b67c4;
+  --seq-6: #1d4fa3;
+  --seq-7: #153b7d;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(28, 36, 48, 0.05), 0 4px 16px rgba(28, 36, 48, 0.06);
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --maxw: 1120px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--brand-2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+/* ---------- Sidhuvud ---------- */
+.site-head {
+  background: var(--brand);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 12px rgba(20, 52, 92, 0.25);
+}
+.site-head .wrap {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  min-height: 60px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.logo:hover { text-decoration: none; }
+.logo .sigill {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--gold);
+  color: var(--brand);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+}
+.logo b { font-weight: 800; }
+.logo span { font-weight: 400; opacity: 0.85; }
+nav.main { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+nav.main a {
+  color: rgba(255, 255, 255, 0.85);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+nav.main a:hover { background: rgba(255, 255, 255, 0.1); color: #fff; text-decoration: none; }
+nav.main a.on { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+/* ---------- Hjälte ---------- */
+.hero {
+  background:
+    radial-gradient(1100px 420px at 85% -60%, rgba(201, 155, 46, 0.35), transparent 60%),
+    linear-gradient(180deg, var(--brand) 0%, #10294a 100%);
+  color: #fff;
+  padding: 56px 0 46px;
+}
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4.6vw, 46px);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  max-width: 17ch;
+}
+.hero p.lede {
+  margin: 0;
+  max-width: 58ch;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.82);
+}
+.hero .cta-rad { margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn:hover { text-decoration: none; }
+.btn-gold { background: var(--gold); color: #23293a; }
+.btn-gold:hover { background: #d8ab3f; }
+.btn-ghost { border-color: rgba(255, 255, 255, 0.35); color: #fff; }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+.btn-blue { background: var(--brand-2); color: #fff; }
+.btn-blue:hover { background: #245f9e; }
+
+/* ---------- Nedräkning + stat-plattor ---------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.tile .t-label { font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+.tile .t-value { font-size: 30px; font-weight: 650; line-height: 1.1; letter-spacing: -0.3px; }
+.tile .t-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+.tile.dark { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); box-shadow: none; }
+.tile.dark .t-label { color: rgba(255, 255, 255, 0.75); }
+.tile.dark .t-value { color: #fff; }
+.tile.dark .t-sub { color: rgba(255, 255, 255, 0.55); }
+.hero .tiles { margin-top: 30px; }
+
+/* ---------- Sektioner & kort ---------- */
+main { padding: 34px 0 60px; }
+.sektion { margin: 34px 0; }
+.sektion > h2 { font-size: 23px; margin: 0 0 4px; letter-spacing: -0.3px; }
+.sektion > p.sub { margin: 0 0 16px; color: var(--ink-2); font-size: 15px; }
+.kort {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.kort h3 { margin: 0 0 6px; font-size: 17px; }
+.kort-rad { display: grid; gap: 16px; }
+@media (min-width: 860px) { .kort-rad.tva { grid-template-columns: 1fr 1fr; } .kort-rad.tre { grid-template-columns: 1fr 1fr 1fr; } }
+
+/* ---------- Partichip ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 21px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #fff;
+}
+.chip.lt { color: #23293a; } /* på ljusa partifärger: mörk text */
+.chip-S { background: var(--p-S); }
+.chip-SD { background: var(--p-SD); color: #23293a; }
+.chip-M { background: var(--p-M); color: #23293a; }
+.chip-C { background: var(--p-C); }
+.chip-V { background: var(--p-V); }
+.chip-KD { background: var(--p-KD); }
+.chip-MP { background: var(--p-MP); color: #23293a; }
+.chip-L { background: var(--p-L); }
+.chip-X, .chip--, .chip-\- { background: var(--p-X); }
+
+/* ---------- Filterrad (en rad ovanför innehållet) ---------- */
+.filterrad {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+.filterrad input[type="search"],
+.filterrad select {
+  font: inherit;
+  font-size: 14.5px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  min-width: 0;
+}
+.filterrad input[type="search"] { flex: 1 1 220px; }
+.filterrad input[type="search"]:focus, .filterrad select:focus { outline: 2px solid var(--brand-2); outline-offset: 1px; border-color: var(--brand-2); }
+.filterrad .antal { margin-left: auto; font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
+
+/* ---------- Ledamotskort ---------- */
+.led-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 14px; }
+.led-kort {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+.led-kort:hover { text-decoration: none; border-color: var(--brand-2); }
+.led-kort img, .led-foto {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  background: var(--surface-2);
+  flex: none;
+  border: 1px solid var(--line);
+}
+.led-kort .n { font-weight: 650; font-size: 15px; line-height: 1.25; }
+.led-kort .m { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.led-kort .s { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+
+/* ---------- Profilsida ---------- */
+.profil-topp { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.profil-topp img {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 3px solid #fff;
+  box-shadow: var(--shadow);
+  background: var(--surface-2);
+}
+.profil-topp h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.4px; }
+.profil-topp .meta { color: var(--ink-2); margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ---------- Staplar (närvaro, partifördelning) ---------- */
+.bar-rad { display: grid; grid-template-columns: 88px 1fr 62px; gap: 10px; align-items: center; margin: 7px 0; font-size: 13.5px; }
+.bar-rad .bl { display: flex; align-items: center; gap: 7px; color: var(--ink-2); font-weight: 550; }
+.bar-spar { position: relative; height: 18px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.bar-fyll { position: absolute; inset: 0 auto 0 0; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-rad .bv { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+/* Horisontell fördelningsstapel (Ja/Nej/Avstår/Frånvarande) med 2px ytmellanrum */
+.fordelning { display: flex; height: 16px; border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.fordelning span { display: block; height: 100%; }
+.fordelning span + span { margin-left: 2px; } /* ytmellanrum */
+.f-ja { background: var(--seq-5); }
+.f-nej { background: #b3541e; }
+.f-avstar { background: #b8b09a; }
+.f-franv { background: #e3ddce; }
+
+/* ---------- Heatmap (partikompassen) ---------- */
+.heat-wrap { overflow-x: auto; }
+.heat {
+  border-collapse: separate;
+  border-spacing: 2px; /* 2px ytmellanrum mellan celler */
+  margin: 0 auto;
+}
+.heat th { font-size: 12.5px; font-weight: 700; color: var(--ink-2); padding: 4px 6px; }
+.heat th .chip { min-width: 34px; }
+.heat td {
+  width: 62px;
+  height: 44px;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+.heat td.self { background: var(--surface-2); color: var(--ink-3); font-weight: 400; }
+.heat td:not(.self):hover { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+.skala { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); margin-top: 12px; justify-content: center; }
+.skala .steg { display: flex; border-radius: 4px; overflow: hidden; }
+.skala .steg i { width: 26px; height: 12px; display: block; }
+.skala .steg i + i { margin-left: 2px; }
+
+/* ---------- Tabeller ---------- */
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th {
+  text-align: left;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-3);
+  font-weight: 650;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+table.data td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+table.data tr:hover td { background: var(--surface-2); }
+table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.utfall { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.utfall.bifall { background: #e3efe6; color: #1c6b35; }
+.utfall.avslag { background: #f7e5da; color: #9c4a17; }
+.utfall.jamnt { background: var(--surface-2); color: var(--ink-2); }
+
+/* ---------- Voteringsdetalj ---------- */
+.vot-detalj { background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px 16px; }
+.vot-detalj .rad { display: grid; grid-template-columns: 52px 1fr 120px; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+.vot-detalj .rad .siffror { color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+/* ---------- Tooltip ---------- */
+#rk-tip {
+  position: fixed;
+  z-index: 90;
+  background: #22293a;
+  color: #fff;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  max-width: 300px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.08s;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+#rk-tip .t-v { font-weight: 700; font-size: 14px; }
+#rk-tip .t-l { color: rgba(255, 255, 255, 0.75); }
+#rk-tip.on { opacity: 1; }
+
+/* ---------- Listor på startsidan ---------- */
+.mini-lista { list-style: none; margin: 0; padding: 0; }
+.mini-lista li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.mini-lista li:last-child { border-bottom: 0; }
+.mini-lista img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--surface-2); }
+.mini-lista .v { margin-left: auto; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mini-lista .g { color: var(--ink-3); font-size: 12.5px; }
+
+/* ---------- Om-sida / metod ---------- */
+.prosa { max-width: 72ch; }
+.prosa h2 { font-size: 21px; margin-top: 30px; }
+.prosa h3 { font-size: 17px; }
+.prosa code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); border-radius: 5px; padding: 1px 6px; }
+
+/* ---------- Sidfot ---------- */
+.site-foot { border-top: 1px solid var(--line); background: var(--surface); margin-top: 30px; }
+.site-foot .wrap { padding: 26px 20px 34px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: space-between; color: var(--ink-2); font-size: 13.5px; }
+.site-foot a { color: var(--ink-2); text-decoration: underline; }
+.site-foot .brand { font-weight: 800; color: var(--ink); font-size: 15px; }
+
+/* ---------- Diverse ---------- */
+.tag { display: inline-block; background: var(--gold-soft); color: #6b5314; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; letter-spacing: 0.3px; }
+.tomt { color: var(--ink-3); text-align: center; padding: 40px 10px; }
+.skiplink { position: absolute; left: -9999px; }
+.skiplink:focus { position: fixed; left: 12px; top: 12px; background: #fff; padding: 10px 14px; z-index: 99; border-radius: 8px; }
+.tabell-toggle { font-size: 13px; }
+[hidden] { display: none !important; }
+.laddar { color: var(--ink-3); padding: 30px; text-align: center; }

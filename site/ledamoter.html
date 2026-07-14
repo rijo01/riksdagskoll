@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledamöter — Riksdagskoll</title>
+<meta name="description" content="Alla riksdagens ledamöter med närvaro, röstmönster och avvikande röster under mandatperioden 2022–2026.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/rk.css">
+</head>
+<body data-base="">
+<a class="skiplink" href="#innehall">Till innehållet</a>
+
+<main id="innehall">
+  <div class="wrap">
+    <section class="sektion">
+      <h2 style="font-size:28px">Riksdagens ledamöter</h2>
+      <p class="sub">Tjänstgörande ledamöter med samlad voteringsstatistik för mandatperioden 2022–2026. Klicka på en ledamot för full profil.</p>
+
+      <div class="filterrad" role="search">
+        <input type="search" id="sok" placeholder="Sök namn eller valkrets …" aria-label="Sök ledamot">
+        <select id="f-parti" aria-label="Filtrera på parti"><option value="">Alla partier</option></select>
+        <select id="f-valkrets" aria-label="Filtrera på valkrets"><option value="">Alla valkretsar</option></select>
+        <select id="f-sort" aria-label="Sortera">
+          <option value="namn">Efternamn A–Ö</option>
+          <option value="narvaro">Högst närvaro</option>
+          <option value="franvaro">Högst frånvaro</option>
+          <option value="rebell">Flest avvikelser</option>
+        </select>
+        <span class="antal" id="antal"></span>
+      </div>
+
+      <div class="led-grid" id="grid"><div class="laddar">Läser data …</div></div>
+    </section>
+  </div>
+</main>
+
+<script src="assets/rk.js"></script>
+<script>
+(async function () {
+  RK.nav('ledamoter');
+  RK.foot();
+
+  const grid = document.getElementById('grid');
+  const sok = document.getElementById('sok');
+  const fParti = document.getElementById('f-parti');
+  const fValkrets = document.getElementById('f-valkrets');
+  const fSort = document.getElementById('f-sort');
+  const antal = document.getElementById('antal');
+
+  let alla = [];
+  try {
+    alla = await RK.data('ledamoter');
+  } catch (e) {
+    grid.textContent = '';
+    grid.appendChild(RK.el('div', 'tomt', 'Data saknas ännu — kör uppdatera.html för att hämta från riksdagens API.'));
+    return;
+  }
+
+  // Fyll filterval
+  RK.PARTIER.forEach(function (p) {
+    const o = RK.el('option', null, p + ' — ' + RK.PARTINAMN[p]);
+    o.value = p;
+    fParti.appendChild(o);
+  });
+  Array.from(new Set(alla.map((l) => l.valkrets).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv')).forEach(function (v) {
+    const o = RK.el('option', null, v);
+    o.value = v;
+    fValkrets.appendChild(o);
+  });
+
+  // Ev. sökterm via #sok=
+  const m = location.hash.match(/sok=([^&]+)/);
+  if (m) sok.value = decodeURIComponent(m[1]);
+
+  function norm(s) { return (s || '').toLowerCase(); }
+
+  function rita() {
+    const q = norm(sok.value);
+    const p = fParti.value;
+    const v = fValkrets.value;
+    let ls = alla.filter(function (l) {
+      if (p && l.parti !== p) return false;
+      if (v && l.valkrets !== v) return false;
+      if (q && !(norm(l.fn + ' ' + l.en).includes(q) || norm(l.valkrets).includes(q))) return false;
+      return true;
+    });
+    const s = fSort.value;
+    if (s === 'narvaro') ls.sort((a, b) => (b.narvaroPct || 0) - (a.narvaroPct || 0));
+    else if (s === 'franvaro') ls.sort((a, b) => (a.narvaroPct || 100) - (b.narvaroPct || 100));
+    else if (s === 'rebell') ls.sort((a, b) => b.rebell - a.rebell);
+    else ls.sort((a, b) => (a.en + a.fn).localeCompare(b.en + b.fn, 'sv'));
+
+    antal.textContent = ls.length + ' av ' + alla.length;
+    grid.textContent = '';
+    if (!ls.length) {
+      grid.appendChild(RK.el('div', 'tomt', 'Inga ledamöter matchar din sökning.'));
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    ls.forEach(function (l) {
+      const a = RK.el('a', 'led-kort');
+      a.href = 'ledamot/' + l.slug + '.html';
+      const img = RK.el('img');
+      img.loading = 'lazy'; img.alt = ''; img.src = l.bild || '';
+      img.onerror = function () { this.style.visibility = 'hidden'; };
+      a.appendChild(img);
+      const info = RK.el('div');
+      info.appendChild(RK.el('div', 'n', l.fn + ' ' + l.en));
+      const meta = RK.el('div', 'm');
+      meta.appendChild(RK.chip(l.parti));
+      meta.appendChild(RK.el('span', null, l.valkrets || ''));
+      info.appendChild(meta);
+      const st = RK.el('div', 's');
+      st.textContent = (l.narvaroPct == null ? 'Ingen votering ännu' : 'Närvaro ' + RK.pct(l.narvaroPct) + (l.rebell ? ' · ' + l.rebell + ' avvik.' : ''));
+      info.appendChild(st);
+      a.appendChild(info);
+      frag.appendChild(a);
+    });
+    grid.appendChild(frag);
+  }
+
+  [sok, fParti, fValkrets, fSort].forEach(function (el) {
+    el.addEventListener('input', rita);
+  });
+  rita();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uppdatera data — Riksdagskoll</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/rk.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/browser.min.js"></script>
+<style>
+.drop {
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ink-2);
+  transition: border-color 0.15s, background 0.15s;
+}
+.drop.over { border-color: var(--brand-2); background: #eef4fb; }
+.fil-lista { list-style: none; padding: 0; margin: 14px 0 0; font-size: 14px; }
+.fil-lista li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; }
+.fil-lista .ok { color: #1c6b35; font-weight: 700; }
+.fil-lista .vantar { color: var(--ink-3); }
+#logg { font-family: var(--mono); font-size: 12.5px; background: #1c2430; color: #c7d0dd; border-radius: 10px; padding: 14px; max-height: 300px; overflow: auto; white-space: pre-wrap; }
+.ladda-ner-rad { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+</style>
+</head>
+<body data-base="">
+<main id="innehall">
+  <div class="wrap">
+    <section class="sektion prosa" style="max-width:860px">
+      <h2 style="font-size:28px;margin-top:0">Uppdatera sajtens data</h2>
+      <p>Den här sidan bygger om Riksdagskolls datafiler direkt i din webbläsare — ingen server eller programmering behövs. Tre steg:</p>
+
+      <h3>1. Ladda ner källfilerna från riksdagen</h3>
+      <p>Klicka på länkarna (filerna hamnar i Hämtade filer):</p>
+      <ul style="font-size:14.5px;line-height:2">
+        <li><a href="https://data.riksdagen.se/dataset/votering/votering-202223.json.zip">votering-202223.json.zip</a> · <a href="https://data.riksdagen.se/dataset/votering/votering-202324.json.zip">votering-202324.json.zip</a> · <a href="https://data.riksdagen.se/dataset/votering/votering-202425.json.zip">votering-202425.json.zip</a> · <a href="https://data.riksdagen.se/dataset/votering/votering-202526.json.zip">votering-202526.json.zip</a></li>
+        <li><a href="https://data.riksdagen.se/dataset/person/person.json.zip">person.json.zip</a> (ledamotsregistret)</li>
+        <li>Betänkandetitlar (CSV):
+          <a href="https://data.riksdagen.se/dokumentlista/?doktyp=bet&amp;rm=2022%2F23&amp;utformat=csv&amp;sz=10000">2022/23</a> ·
+          <a href="https://data.riksdagen.se/dokumentlista/?doktyp=bet&amp;rm=2023%2F24&amp;utformat=csv&amp;sz=10000">2023/24</a> ·
+          <a href="https://data.riksdagen.se/dokumentlista/?doktyp=bet&amp;rm=2024%2F25&amp;utformat=csv&amp;sz=10000">2024/25</a> ·
+          <a href="https://data.riksdagen.se/dokumentlista/?doktyp=bet&amp;rm=2025%2F26&amp;utformat=csv&amp;sz=10000">2025/26</a></li>
+      </ul>
+
+      <h3>2. Släpp filerna här</h3>
+      <div class="drop" id="drop">
+        <strong>Dra och släpp</strong> alla zip- och csv-filer hit<br>
+        <span style="font-size:13.5px">eller</span><br>
+        <label class="btn btn-blue" style="margin-top:10px">Välj filer <input type="file" id="valj" multiple hidden accept=".zip,.csv"></label>
+        <ul class="fil-lista" id="fil-lista"></ul>
+      </div>
+
+      <p style="margin-top:16px"><button class="btn btn-gold" id="bygg" disabled>Bygg datafiler</button></p>
+      <div id="logg" hidden></div>
+      <div class="ladda-ner-rad" id="resultat"></div>
+
+      <h3>3. Ersätt filerna i mappen <code>data/</code></h3>
+      <p>Ladda upp de nya JSON-filerna till sajtens <code>data/</code>-mapp (via ditt webbhotells filhanterare eller FTP) och ersätt de gamla. Klart!</p>
+    </section>
+  </div>
+</main>
+
+<script src="assets/rk.js"></script>
+<script>
+(function () {
+  RK.nav('');
+  RK.foot();
+
+  var RMS = ['2022/23', '2023/24', '2024/25', '2025/26'];
+  var PARTIER = ['S', 'M', 'SD', 'C', 'V', 'KD', 'L', 'MP'];
+  var PARTINAMN = RK.PARTINAMN;
+  var ROSTER = ['Ja', 'Nej', 'Avstår', 'Frånvarande'];
+  var MIN_ROSTER = 100;
+
+  var filer = {}; // namn -> File
+  var drop = document.getElementById('drop');
+  var lista = document.getElementById('fil-lista');
+  var byggBtn = document.getElementById('bygg');
+  var logg = document.getElementById('logg');
+  var resultat = document.getElementById('resultat');
+
+  var BEHOVS = ['votering-202223.json.zip', 'votering-202324.json.zip', 'votering-202425.json.zip', 'votering-202526.json.zip', 'person.json.zip'];
+
+  function visaFiler() {
+    lista.textContent = '';
+    BEHOVS.forEach(function (n) {
+      var li = RK.el('li');
+      li.appendChild(RK.el('span', filer[n] ? 'ok' : 'vantar', filer[n] ? '✓' : '○'));
+      li.appendChild(RK.el('span', null, n + (filer[n] ? ' (' + Math.round(filer[n].size / 1e6) + ' MB)' : '')));
+      lista.appendChild(li);
+    });
+    var csvs = Object.keys(filer).filter(function (n) { return n.toLowerCase().endsWith('.csv'); });
+    if (csvs.length) {
+      var li = RK.el('li');
+      li.appendChild(RK.el('span', 'ok', '✓'));
+      li.appendChild(RK.el('span', null, csvs.length + ' csv-filer (titlar)'));
+      lista.appendChild(li);
+    }
+    byggBtn.disabled = !BEHOVS.every(function (n) { return filer[n]; });
+  }
+  visaFiler();
+
+  function taEmot(fileList) {
+    Array.prototype.forEach.call(fileList, function (f) {
+      var n = f.name.replace(/\s*\(\d+\)(\.\w+)$/, '$1'); // "fil (1).zip" -> "fil.zip"
+      filer[n] = f;
+    });
+    visaFiler();
+  }
+  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+  drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('over'); taEmot(e.dataTransfer.files); });
+  document.getElementById('valj').addEventListener('change', function () { taEmot(this.files); });
+
+  function skriv(s) {
+    logg.hidden = false;
+    logg.textContent += s + '\n';
+    logg.scrollTop = logg.scrollHeight;
+  }
+
+  function normParti(p) { p = (p || '-').trim().toUpperCase(); return p || '-'; }
+
+  function unzipEntries(file, cb, done) {
+    // Läser zip → callback(namn, Uint8Array) per json-fil
+    file.arrayBuffer().then(function (buf) {
+      var entries = fflate.unzipSync(new Uint8Array(buf), {
+        filter: function (f) { return f.name.toLowerCase().endsWith('.json'); }
+      });
+      Object.keys(entries).forEach(function (n) { cb(n, entries[n]); });
+      done();
+    });
+  }
+  var dec = new TextDecoder('utf-8');
+  function parseJsonBytes(bytes) {
+    var s = dec.decode(bytes);
+    if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+    return JSON.parse(s);
+  }
+
+  byggBtn.addEventListener('click', function () {
+    byggBtn.disabled = true;
+    resultat.textContent = '';
+    logg.textContent = '';
+    skriv('Startar bygge …');
+
+    var voteringar = {}, narvaro = {}, rebeller = [];
+    var kvar = RMS.length;
+
+    RMS.forEach(function (rm) {
+      var zname = 'votering-' + rm.replace('/', '') + '.json.zip';
+      var vv = {}; voteringar[rm] = vv;
+      var nn = {}; // iid -> counts
+      var pvr = {}; // vid -> parti -> [rost, iid, namn, valkrets]
+
+      unzipEntries(filer[zname], function (namn, bytes) {
+        var data;
+        try { data = parseJsonBytes(bytes); } catch (e) { return; }
+        var dok = data.dokvotering || (data.votering && data.votering.dokvotering) || {};
+        var rows = dok.votering;
+        if (!rows) return;
+        if (!Array.isArray(rows)) rows = [rows];
+        rows.forEach(function (r) {
+          var vid = r.votering_id || namn;
+          var v = vv[vid];
+          if (!v) {
+            v = vv[vid] = { bet: (r.beteckning || '').toUpperCase(), punkt: String(r.punkt || ''), avser: r.avser || '', typ: r.votering || '', datum: '', vid: vid, tot: [0, 0, 0, 0], parti: {} };
+          }
+          var sd = (r.systemdatum || '').slice(0, 10);
+          if (sd > v.datum) v.datum = sd;
+          var ri = ROSTER.indexOf(r.rost);
+          if (ri < 0) return;
+          v.tot[ri]++;
+          var p = normParti(r.parti);
+          if (!v.parti[p]) v.parti[p] = [0, 0, 0, 0];
+          v.parti[p][ri]++;
+          var iid = r.intressent_id || '';
+          if (iid) {
+            var d = nn[iid] || (nn[iid] = { J: 0, Nj: 0, A: 0, F: 0, namn: '', parti: '-', valkrets: '' });
+            d[['J', 'Nj', 'A', 'F'][ri]]++;
+            d.namn = r.namn || d.namn;
+            d.parti = p;
+            d.valkrets = r.valkrets || d.valkrets;
+          }
+          if (ri < 2 && iid) {
+            var pv = pvr[vid] || (pvr[vid] = {});
+            (pv[p] || (pv[p] = [])).push([r.rost, iid, r.namn || '', r.valkrets || '']);
+          }
+        });
+      }, function () {
+        // rebeller för detta rm
+        Object.keys(pvr).forEach(function (vid) {
+          var v = vv[vid];
+          Object.keys(pvr[vid]).forEach(function (p) {
+            if (p === '-') return; // partilösa har ingen partilinje
+            var c = v.parti[p];
+            if (c[0] > 0 && c[1] > 0 && c[0] !== c[1]) {
+              var minoritet = c[0] < c[1] ? 'Ja' : 'Nej';
+              pvr[vid][p].forEach(function (t) {
+                if (t[0] === minoritet) {
+                  rebeller.push({ rm: rm, bet: v.bet, punkt: v.punkt, parti: p, rost: t[0], iid: t[1], namn: t[2], valkrets: t[3], datum: v.datum, vid: vid, majJ: c[0], majN: c[1] });
+                }
+              });
+            }
+          });
+        });
+        narvaro[rm] = Object.keys(nn).map(function (iid) {
+          var d = nn[iid];
+          return { iid: iid, namn: d.namn, parti: d.parti, valkrets: d.valkrets, J: d.J, Nj: d.Nj, A: d.A, F: d.F };
+        });
+        skriv(rm + ': ' + Object.keys(vv).length + ' voteringar, ' + narvaro[rm].length + ' röstande ledamöter');
+        if (--kvar === 0) steg2();
+      });
+    });
+
+    function steg2() {
+      // Ledamöter
+      var ledamoter = [];
+      unzipEntries(filer['person.json.zip'], function (namn, bytes) {
+        var data;
+        try { data = parseJsonBytes(bytes); } catch (e) { return; }
+        var p = data.person || data;
+        var kand = Array.isArray(p) ? p : [p];
+        kand.forEach(function (q) {
+          if (!q || typeof q !== 'object') return;
+          var status = q.status || '';
+          if (status.indexOf('Tjänstgörande') === -1) return;
+          ledamoter.push({ iid: q.intressent_id || '', fn: q.tilltalsnamn || q.fornamn || '', en: q.efternamn || '', parti: normParti(q.parti), valkrets: q.valkrets || '', kon: q.kon || '', fodd: String(q.fodd_ar || ''), bild: q.bild_url_192 || q.bild_url_80 || '', status: status });
+        });
+      }, function () {
+        skriv('person: ' + ledamoter.length + ' tjänstgörande ledamöter');
+        steg3(ledamoter);
+      });
+    }
+
+    function steg3(ledamoter) {
+      // CSV-titlar
+      var betTitlar = {};
+      var csvs = Object.keys(filer).filter(function (n) { return n.toLowerCase().endsWith('.csv'); });
+      var kvarCsv = csvs.length;
+      if (!kvarCsv) return steg4(ledamoter, betTitlar);
+      csvs.forEach(function (n) {
+        filer[n].text().then(function (txt) {
+          if (txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+          var delim = (txt.split(';').length > txt.split(',').length) ? ';' : ',';
+          var rader = txt.split(/\r?\n/);
+          var head = rader[0].split(delim).map(function (h) { return h.trim().toLowerCase().replace(/^"|"$/g, ''); });
+          var iRm = head.indexOf('rm'), iBet = head.indexOf('beteckning'), iTitel = head.indexOf('titel'), iDatum = head.indexOf('datum'), iOrgan = head.indexOf('organ');
+          for (var i = 1; i < rader.length; i++) {
+            if (!rader[i]) continue;
+            // enkel CSV-split med citat-hantering
+            var f = [], cur = '', q = false;
+            for (var j = 0; j < rader[i].length; j++) {
+              var ch = rader[i][j];
+              if (ch === '"') { q = !q; }
+              else if (ch === delim && !q) { f.push(cur); cur = ''; }
+              else cur += ch;
+            }
+            f.push(cur);
+            var rm = (f[iRm] || '').trim(), bet = (f[iBet] || '').trim().toUpperCase();
+            if (!rm || !bet) continue;
+            if (!betTitlar[rm]) betTitlar[rm] = {};
+            betTitlar[rm][bet] = { titel: (f[iTitel] || '').trim(), datum: (f[iDatum] || '').slice(0, 10), organ: (f[iOrgan] || '').trim() };
+          }
+          if (--kvarCsv === 0) {
+            skriv('titlar: ' + Object.keys(betTitlar).map(function (rm) { return rm + '=' + Object.keys(betTitlar[rm]).length; }).join(', '));
+            steg4(ledamoter, betTitlar);
+          }
+        });
+      });
+    }
+
+    function steg4(ledamoter, betTitlar) {
+      skriv('Beräknar statistik …');
+      // === Voteringsfiler per rm ===
+      var utfiler = {};
+      var totVot = 0;
+      RMS.forEach(function (rm) {
+        var rows = Object.keys(voteringar[rm]).map(function (vid) {
+          var v = voteringar[rm][vid];
+          var info = (betTitlar[rm] || {})[v.bet] || {};
+          var utfall = v.tot[0] > v.tot[1] ? 'bifall' : (v.tot[1] > v.tot[0] ? 'avslag' : 'jämnt');
+          var titel = info.titel || '';
+          if (v.typ && v.typ !== 'huvud') titel += (titel ? ' ' : '') + '(förberedande votering)';
+          else if (v.avser && v.avser !== 'sakfrågan') titel += (titel ? ' ' : '') + '(' + v.avser + ')';
+          return { bet: v.bet, punkt: v.punkt, titel: titel, organ: info.organ || '', datum: v.datum || info.datum || '', tot: v.tot, utfall: utfall, parti: v.parti, vid: v.vid };
+        });
+        rows.sort(function (a, b) { return (b.datum + b.bet + b.punkt).localeCompare(a.datum + a.bet + a.punkt); });
+        utfiler['voteringar-' + rm.replace('/', '')] = rows;
+        totVot += rows.length;
+      });
+
+      // === Partikompass ===
+      function position(c) {
+        var m = Math.max(c[0], c[1], c[2]);
+        if (!m) return null;
+        var vinnare = [];
+        if (c[0] === m) vinnare.push('Ja');
+        if (c[1] === m) vinnare.push('Nej');
+        if (c[2] === m) vinnare.push('Avstår');
+        return vinnare.length === 1 ? vinnare[0] : null;
+      }
+      var pairAgree = {}, sammanh = {}, partiTot = {};
+      PARTIER.forEach(function (p) { sammanh[p] = [0, 0]; partiTot[p] = [0, 0, 0, 0]; });
+      RMS.forEach(function (rm) {
+        utfiler['voteringar-' + rm.replace('/', '')].forEach(function (v) {
+          var pos = {};
+          PARTIER.forEach(function (p) {
+            var c = v.parti[p];
+            if (!c) return;
+            var sum = c[0] + c[1] + c[2] + c[3];
+            if (!sum) return;
+            pos[p] = position(c);
+            for (var i = 0; i < 4; i++) partiTot[p][i] += c[i];
+            if (c[0] + c[1] + c[2] > 0) {
+              sammanh[p][1]++;
+              if (c[0] > 0 && c[1] > 0) sammanh[p][0]++;
+            }
+          });
+          for (var i = 0; i < PARTIER.length; i++) {
+            for (var j = i + 1; j < PARTIER.length; j++) {
+              var p1 = PARTIER[i], p2 = PARTIER[j];
+              if (pos[p1] && pos[p2]) {
+                var k = p1 + '|' + p2;
+                var pa = pairAgree[k] || (pairAgree[k] = [0, 0]);
+                pa[1]++;
+                if (pos[p1] === pos[p2]) pa[0]++;
+              }
+            }
+          }
+        });
+      });
+      var matrix = {};
+      PARTIER.forEach(function (p1, i) {
+        matrix[p1] = {};
+        PARTIER.forEach(function (p2, j) {
+          if (p1 === p2) { matrix[p1][p2] = { pct: 100, n: 0 }; return; }
+          var k = i < j ? p1 + '|' + p2 : p2 + '|' + p1;
+          var pa = pairAgree[k] || [0, 0];
+          matrix[p1][p2] = { pct: pa[1] ? Math.round(1000 * pa[0] / pa[1]) / 10 : null, n: pa[1] };
+        });
+      });
+      var partikompass = {
+        partier: PARTIER, partinamn: PARTINAMN, matrix: matrix,
+        sammanhallning: {}, franvaro: {},
+      };
+      PARTIER.forEach(function (p) {
+        var s = sammanh[p];
+        partikompass.sammanhallning[p] = { splittrade: s[0], voteringar: s[1], pct: s[1] ? Math.round(1000 * (1 - s[0] / s[1])) / 10 : null };
+        var t = partiTot[p], sum = t[0] + t[1] + t[2] + t[3];
+        partikompass.franvaro[p] = sum ? Math.round(1000 * t[3] / sum) / 10 : null;
+      });
+
+      // === Ledamöter ===
+      var perIid = {};
+      RMS.forEach(function (rm) {
+        narvaro[rm].forEach(function (r) {
+          var d = perIid[r.iid] || (perIid[r.iid] = { perRm: {}, J: 0, Nj: 0, A: 0, F: 0 });
+          d.perRm[rm] = [r.J, r.Nj, r.A, r.F];
+          d.J += r.J; d.Nj += r.Nj; d.A += r.A; d.F += r.F;
+        });
+      });
+      var rebPerIid = {};
+      rebeller.forEach(function (e) {
+        var info = (betTitlar[e.rm] || {})[e.bet] || {};
+        var e2 = Object.assign({}, e, { titel: info.titel || '' });
+        if (!e2.datum) e2.datum = info.datum || '';
+        (rebPerIid[e.iid] || (rebPerIid[e.iid] = [])).push(e2);
+      });
+      function slugify(s) {
+        s = s.toLowerCase()
+          .replace(/[åä]/g, 'a').replace(/ö/g, 'o').replace(/é/g, 'e').replace(/ü/g, 'u')
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        return s || 'ledamot';
+      }
+      var slugCount = {};
+      var ledOut = ledamoter.map(function (p) {
+        var st = perIid[p.iid] || { perRm: {}, J: 0, Nj: 0, A: 0, F: 0 };
+        var tot = st.J + st.Nj + st.A + st.F;
+        var aktiva = st.J + st.Nj;
+        var revs = (rebPerIid[p.iid] || []).sort(function (a, b) { return (b.datum || '').localeCompare(a.datum || ''); });
+        var base = slugify(p.fn + ' ' + p.en);
+        slugCount[base] = (slugCount[base] || 0) + 1;
+        var slug = slugCount[base] === 1 ? base : base + '-' + slugCount[base];
+        return {
+          iid: p.iid, slug: slug, fn: p.fn, en: p.en, parti: p.parti, valkrets: p.valkrets,
+          kon: p.kon, fodd: p.fodd, bild: p.bild, status: p.status,
+          J: st.J, Nj: st.Nj, A: st.A, F: st.F, tot: tot,
+          narvaroPct: tot ? Math.round(1000 * (tot - st.F) / tot) / 10 : null,
+          rebell: revs.length,
+          rebellPct: aktiva ? Math.round(10000 * revs.length / aktiva) / 100 : null,
+          perRm: st.perRm, avvikelser: revs.slice(0, 60),
+        };
+      });
+      ledOut.sort(function (a, b) { return (a.en + a.fn).localeCompare(b.en + b.fn, 'sv'); });
+
+      // === Topplistor ===
+      var kand = ledOut.filter(function (l) { return l.tot >= MIN_ROSTER; });
+      function entry(l, extra) {
+        return Object.assign({ iid: l.iid, slug: l.slug, namn: l.fn + ' ' + l.en, parti: l.parti, valkrets: l.valkrets, bild: l.bild }, extra);
+      }
+      var franSort = kand.slice().sort(function (a, b) { return (a.narvaroPct || 0) - (b.narvaroPct || 0); });
+      var narSort = kand.slice().sort(function (a, b) { return (b.narvaroPct || 0) - (a.narvaroPct || 0); });
+      var rebSort = kand.slice().sort(function (a, b) { return b.rebell - a.rebell; });
+      var allaAvv = [];
+      ledOut.forEach(function (l) { allaAvv = allaAvv.concat(l.avvikelser); });
+      allaAvv.sort(function (a, b) { return (b.datum || '').localeCompare(a.datum || ''); });
+      var topplistor = {
+        mest_franvarande: franSort.slice(0, 15).map(function (l) { return entry(l, { pct: Math.round(10 * (100 - (l.narvaroPct || 0))) / 10, F: l.F, tot: l.tot }); }),
+        hogst_narvaro: narSort.slice(0, 15).map(function (l) { return entry(l, { pct: l.narvaroPct, F: l.F, tot: l.tot }); }),
+        flest_avvikelser: rebSort.slice(0, 15).filter(function (l) { return l.rebell > 0; }).map(function (l) { return entry(l, { antal: l.rebell, pct: l.rebellPct }); }),
+        senaste_avvikelser: allaAvv.slice(0, 25),
+      };
+
+      var rosterTot = 0;
+      PARTIER.forEach(function (p) { var t = partiTot[p]; rosterTot += t[0] + t[1] + t[2] + t[3]; });
+      var meta = {
+        genererad: new Date().toISOString(),
+        rms: RMS, valdatum: '2026-09-13',
+        antal: { ledamoter: ledOut.length, voteringar: totVot, roster: rosterTot, avvikelser: rebeller.length },
+      };
+
+      // === Erbjud nedladdning ===
+      var ut = { 'ledamoter': ledOut, 'partikompass': partikompass, 'topplistor': topplistor, 'meta': meta };
+      Object.keys(utfiler).forEach(function (k) { ut[k] = utfiler[k]; });
+      skriv('Klart! ' + totVot + ' voteringar, ' + rebeller.length + ' avvikande röster, ' + ledOut.length + ' ledamöter.');
+      skriv('Ladda ner filerna nedan och ersätt innehållet i data/-mappen.');
+      Object.keys(ut).forEach(function (namn) {
+        var blob = new Blob([JSON.stringify(ut[namn])], { type: 'application/json' });
+        var a = RK.el('a', 'btn btn-blue', namn + '.json');
+        a.href = URL.createObjectURL(blob);
+        a.download = namn + '.json';
+        resultat.appendChild(a);
+      });
+      byggBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
